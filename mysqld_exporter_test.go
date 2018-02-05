@@ -270,12 +270,10 @@ func testLandingPage(t *testing.T, data bin) {
 	got := string(body)
 
 	expected := `<html>
-<head><title>MySQLd 3-in-1 exporter</title></head>
+<head><title>MySQLd exporter</title></head>
 <body>
-<h1>MySQL 3-in-1 exporter</h1>
-<li><a href="/metrics-hr">high-res metrics</a></li>
-<li><a href="/metrics-mr">medium-res metrics</a></li>
-<li><a href="/metrics-lr">low-res metrics</a></li>
+<h1>MySQLd exporter</h1>
+<p><a href='` + *metricPath + `'>Metrics</a></p>
 </body>
 </html>
 `
@@ -303,10 +301,9 @@ func testDefaultGatherer(t *testing.T, data bin) {
 	defer cmd.Wait()
 	defer cmd.Process.Kill()
 
-	const resolution = "hr"
-	body, err := waitForBody(fmt.Sprintf("http://127.0.0.1:%d%s-%s", data.port, metricPath, resolution))
+	body, err := waitForBody(fmt.Sprintf("http://127.0.0.1:%d%s", data.port, metricPath))
 	if err != nil {
-		t.Fatalf("unable to get metrics for '%s' resolution: %s", resolution, err)
+		t.Fatalf("unable to get metrics: %s", err)
 	}
 	got := string(body)
 
@@ -318,7 +315,7 @@ func testDefaultGatherer(t *testing.T, data bin) {
 
 	for _, prefix := range metricsPrefixes {
 		if !strings.Contains(got, prefix) {
-			t.Fatalf("no metric starting with %s in resolution %s", prefix, resolution)
+			t.Fatalf("no metric starting with prefix: %s", prefix)
 		}
 	}
 }

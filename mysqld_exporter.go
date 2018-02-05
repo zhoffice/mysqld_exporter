@@ -100,38 +100,6 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeHeartbeat{}:                   false,
 }
 
-var scrapersHr = map[collector.Scraper]struct{}{
-	collector.ScrapeGlobalStatus{}:  {},
-	collector.ScrapeInnodbMetrics{}: {},
-}
-
-var scrapersMr = map[collector.Scraper]struct{}{
-	collector.ScrapeSlaveStatus{}:        {},
-	collector.ScrapeProcesslist{}:        {},
-	collector.ScrapePerfEventsWaits{}:    {},
-	collector.ScrapePerfFileEvents{}:     {},
-	collector.ScrapePerfTableLockWaits{}: {},
-	collector.ScrapeQueryResponseTime{}:  {},
-	collector.ScrapeEngineInnodbStatus{}: {},
-}
-
-var scrapersLr = map[collector.Scraper]struct{}{
-	collector.ScrapeGlobalVariables{}:             {},
-	collector.ScrapeTableSchema{}:                 {},
-	collector.ScrapeAutoIncrementColumns{}:        {},
-	collector.ScrapeBinlogSize{}:                  {},
-	collector.ScrapePerfTableIOWaits{}:            {},
-	collector.ScrapePerfIndexIOWaits{}:            {},
-	collector.ScrapePerfFileInstances{}:           {},
-	collector.ScrapeUserStat{}:                    {},
-	collector.ScrapeTableStat{}:                   {},
-	collector.ScrapePerfEventsStatements{}:        {},
-	collector.ScrapeClientStat{}:                  {},
-	collector.ScrapeInfoSchemaInnodbTablespaces{}: {},
-	collector.ScrapeEngineTokudbStatus{}:          {},
-	collector.ScrapeHeartbeat{}:                   {},
-}
-
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
 	cfg, err := ini.Load(config)
@@ -218,12 +186,10 @@ func main() {
 	// landingPage contains the HTML served at '/'.
 	// TODO: Make this nicer and more informative.
 	var landingPage = []byte(`<html>
-<head><title>MySQLd 3-in-1 exporter</title></head>
+<head><title>MySQLd exporter</title></head>
 <body>
-<h1>MySQL 3-in-1 exporter</h1>
-<li><a href="` + *metricPath + `-hr">high-res metrics</a></li>
-<li><a href="` + *metricPath + `-mr">medium-res metrics</a></li>
-<li><a href="` + *metricPath + `-lr">low-res metrics</a></li>
+<h1>MySQLd exporter</h1>
+<p><a href='` + *metricPath + `'>Metrics</a></p>
 </body>
 </html>
 `)
@@ -279,30 +245,19 @@ func main() {
 	// New http server
 	mux := http.NewServeMux()
 
-	// Defines what to scrape in each resolution.
-	hr, mr, lr := enabledScrapers(scraperFlags)
-	mux.Handle(*metricPath+"-hr", newHandler(cfg, hr))
-	mux.Handle(*metricPath+"-mr", newHandler(cfg, mr))
-	mux.Handle(*metricPath+"-lr", newHandler(cfg, lr))
+	// Scrape only enabled scrapers.
+	var enabledScrapers []collector.Scraper
+	for scraper, enabled := range scraperFlags {
+		if *enabled {
+			enabledScrapers = append(enabledScrapers, scraper)
+		}
+	}
+	mux.Handle(*metricPath, newHandler(cfg, enabledScrapers))
 
 	// Log which scrapers are enabled.
-	if len(hr) > 0 {
-		log.Infof("Enabled High Resolution scrapers:")
-		for _, scraper := range hr {
-			log.Infof(" --collect.%s", scraper.Name())
-		}
-	}
-	if len(mr) > 0 {
-		log.Infof("Enabled Medium Resolution scrapers:")
-		for _, scraper := range mr {
-			log.Infof(" --collect.%s", scraper.Name())
-		}
-	}
-	if len(lr) > 0 {
-		log.Infof("Enabled Low Resolution scrapers:")
-		for _, scraper := range lr {
-			log.Infof(" --collect.%s", scraper.Name())
-		}
+	log.Infof("Enabled scrapers:")
+	for _, scraper := range enabledScrapers {
+		log.Infof(" --collect.%s", scraper.Name())
 	}
 
 	srv := &http.Server{
@@ -340,22 +295,4 @@ func main() {
 
 		log.Fatal(srv.ListenAndServe())
 	}
-}
-
-func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (hr, mr, lr []collector.Scraper) {
-	for scraper, enabled := range scraperFlags {
-		if *enabled {
-			if _, ok := scrapersHr[scraper]; ok {
-				hr = append(hr, scraper)
-			}
-			if _, ok := scrapersMr[scraper]; ok {
-				mr = append(mr, scraper)
-			}
-			if _, ok := scrapersLr[scraper]; ok {
-				lr = append(lr, scraper)
-			}
-		}
-	}
-
-	return hr, mr, lr
 }
