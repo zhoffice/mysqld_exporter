@@ -20,7 +20,7 @@ import (
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 
-	"github.com/percona/mysqld_exporter/collector"
+	"collector"
 )
 
 // System variable params formatting.
